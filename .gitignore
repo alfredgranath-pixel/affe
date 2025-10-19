@@ -1,41 +1,314 @@
-# Compiled Lua sources
-luac.out
-
-# luarocks build files
-*.src.rock
-*.zip
-*.tar.gz
-
-# Object files
-*.o
-*.os
-*.ko
-*.obj
-*.elf
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-*.def
-*.exp
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+ 
+-- Main GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PlayerListGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+ 
+-- Main frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 400)
+frame.Position = UDim2.new(0.1, 0, 0.1, 0)
+frame.BackgroundColor3 = Color3.new(1, 1, 1)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+ 
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundColor3 = Color3.new(0.9, 0.9, 0.9)
+title.Text = "Players:"
+title.TextScaled = true
+title.Font = Enum.Font.SourceSansBold
+title.Parent = frame
+ 
+-- Scrolling frame
+local scrollingFrame = Instance.new("ScrollingFrame")
+scrollingFrame.Size = UDim2.new(1, 0, 1, -40)
+scrollingFrame.Position = UDim2.new(0, 0, 0, 40)
+scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollingFrame.ScrollBarThickness = 6
+scrollingFrame.BackgroundTransparency = 1
+scrollingFrame.Parent = frame
+ 
+-- Track secondary GUI
+local openSecondaryGui
+local statUpdater
+ 
+-- Function to create secondary GUI
+local function createSecondaryGui(targetPlayer)
+	if openSecondaryGui then
+		openSecondaryGui:Destroy()
+		if statUpdater then
+			statUpdater:Disconnect()
+		end
+	end
+ 
+	local secFrame = Instance.new("Frame")
+	secFrame.Size = UDim2.new(0, 250, 0, 300)
+	secFrame.Position = frame.Position + UDim2.new(0, frame.Size.X.Offset + 10, 0, 0)
+	secFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+	secFrame.BorderSizePixel = 0
+	secFrame.Active = true
+	secFrame.Draggable = true
+	secFrame.Parent = screenGui
+ 
+	-- Name label
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.new(1, 0, 0, 40)
+	nameLabel.BackgroundColor3 = Color3.new(0.9, 0.9, 0.9)
+	nameLabel.Text = targetPlayer.Name
+	nameLabel.TextScaled = true
+	nameLabel.Font = Enum.Font.SourceSansBold
+	nameLabel.Parent = secFrame
+ 
+	-- Suspicious status label
+	local suspiciousLabelSec = Instance.new("TextLabel")
+	suspiciousLabelSec.Size = UDim2.new(1, -10, 0, 30)
+	suspiciousLabelSec.Position = UDim2.new(0, 5, 0, 45)
+	suspiciousLabelSec.BackgroundTransparency = 1
+	suspiciousLabelSec.Font = Enum.Font.SourceSansBold
+	suspiciousLabelSec.TextScaled = true
+	suspiciousLabelSec.TextXAlignment = Enum.TextXAlignment.Left
+	suspiciousLabelSec.Text = "Status: Non-Suspicious"
+	suspiciousLabelSec.Parent = secFrame
+ 
+	-- Stats frame
+	local statsFrame = Instance.new("Frame")
+	statsFrame.Size = UDim2.new(1, -10, 1, -130)
+	statsFrame.Position = UDim2.new(0, 5, 0, 75)
+	statsFrame.BackgroundTransparency = 1
+	statsFrame.Parent = secFrame
+ 
+	local statsLabel = Instance.new("TextLabel")
+	statsLabel.Size = UDim2.new(1, -10, 1, 0)
+	statsLabel.Position = UDim2.new(0, 5, 0, 0)
+	statsLabel.BackgroundTransparency = 1
+	statsLabel.TextColor3 = Color3.new(0, 0, 0)
+	statsLabel.TextXAlignment = Enum.TextXAlignment.Left
+	statsLabel.TextYAlignment = Enum.TextYAlignment.Top
+	statsLabel.TextScaled = true
+	statsLabel.TextWrapped = true
+	statsLabel.Font = Enum.Font.SourceSansBold
+	statsLabel.Text = ""
+	statsLabel.Parent = statsFrame
+ 
+	local airTime = 0
+ 
+	-- Buttons
+	local viewButton = Instance.new("TextButton")
+	viewButton.Size = UDim2.new(0.45, 0, 0, 40)
+	viewButton.Position = UDim2.new(0, 5, 1, -85)
+	viewButton.BackgroundColor3 = Color3.new(0.4, 0.8, 1)
+	viewButton.Text = "View"
+	viewButton.Font = Enum.Font.SourceSansBold
+	viewButton.TextScaled = true
+	viewButton.Parent = secFrame
+ 
+	local unviewButton = Instance.new("TextButton")
+	unviewButton.Size = UDim2.new(0.45, 0, 0, 40)
+	unviewButton.Position = UDim2.new(0.55, -5, 1, -85)
+	unviewButton.BackgroundColor3 = Color3.new(1, 0.6, 0.4)
+	unviewButton.Text = "Unview"
+	unviewButton.Font = Enum.Font.SourceSansBold
+	unviewButton.TextScaled = true
+	unviewButton.Parent = secFrame
+ 
+	local tpButton = Instance.new("TextButton")
+	tpButton.Size = UDim2.new(1, -10, 0, 40)
+	tpButton.Position = UDim2.new(0, 5, 1, -40)
+	tpButton.BackgroundColor3 = Color3.new(0.4, 1, 0.4)
+	tpButton.Text = "Teleport"
+	tpButton.Font = Enum.Font.SourceSansBold
+	tpButton.TextScaled = true
+	tpButton.Parent = secFrame
+ 
+	viewButton.MouseButton1Click:Connect(function()
+		local character = targetPlayer.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			game.Workspace.CurrentCamera.CameraSubject = humanoid
+		end
+	end)
+ 
+	unviewButton.MouseButton1Click:Connect(function()
+		local character = player.Character
+		if character and character:FindFirstChildOfClass("Humanoid") then
+			game.Workspace.CurrentCamera.CameraSubject = character:FindFirstChildOfClass("Humanoid")
+		end
+	end)
+ 
+	tpButton.MouseButton1Click:Connect(function()
+		local character = player.Character
+		local targetChar = targetPlayer.Character
+		if character and targetChar and targetChar:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("HumanoidRootPart") then
+			character.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0)
+		end
+	end)
+ 
+	-- Update stats & suspicious status
+	statUpdater = game:GetService("RunService").RenderStepped:Connect(function(dt)
+		if not targetPlayer.Parent then
+			secFrame:Destroy()
+			statUpdater:Disconnect()
+			return
+		end
+ 
+		local character = targetPlayer.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local backpack = targetPlayer:FindFirstChild("Backpack")
+		local items = {}
+ 
+		if backpack then
+			for _, tool in ipairs(backpack:GetChildren()) do
+				if tool:IsA("Tool") then
+					table.insert(items, tool.Name)
+				end
+			end
+		end
+ 
+		local speed = humanoid and humanoid.WalkSpeed or 0
+		local jump = humanoid and humanoid.JumpPower or 0
+		local health = humanoid and humanoid.Health or 0
+		local maxHealth = humanoid and humanoid.MaxHealth or 0
+		local itemText = #items > 0 and table.concat(items, ", ") or "None"
+ 
+		-- Air time
+		if humanoid and humanoid.FloorMaterial == Enum.Material.Air then
+			airTime += dt
+		else
+			airTime = 0
+		end
+ 
+		-- Suspicious status
+		local status
+		if humanoid and humanoid.Health <= 0 then
+			status = "Non-Suspicious"
+		elseif #items > 11 then
+			status = "Suspicious"
+		elseif airTime > 3.5 then
+			status = "Suspicious"
+		else
+			status = "Non-Suspicious"
+		end
+ 
+		nameLabel.Text = targetPlayer.Name
+		suspiciousLabelSec.Text = "Status: " .. status
+		suspiciousLabelSec.TextColor3 = (status == "Suspicious") and Color3.new(1, 0, 0) or Color3.new(0, 1, 0)
+ 
+		statsLabel.Text = string.format(
+			"WalkSpeed: %d\nJumpPower: %d\nHealth: %.0f / %.0f\nBackpack Items: %s",
+			speed, jump, health, maxHealth, itemText
+		)
+	end)
+ 
+	openSecondaryGui = secFrame
+end
+ 
+-- Refresh player list
+local function refreshPlayerList()
+	for _, child in ipairs(scrollingFrame:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+ 
+	local yPos = 0
+	for _, plr in ipairs(game.Players:GetPlayers()) do
+		local nameButton = Instance.new("TextButton")
+		nameButton.Size = UDim2.new(1, -10, 0, 30)
+		nameButton.Position = UDim2.new(0, 5, 0, yPos)
+		nameButton.BackgroundTransparency = 1
+		nameButton.TextColor3 = Color3.new(0, 0, 0)
+		nameButton.TextScaled = true
+		nameButton.Text = plr.Name
+		nameButton.Parent = scrollingFrame
+ 
+		nameButton.MouseButton1Click:Connect(function()
+			createSecondaryGui(plr)
+		end)
+ 
+		yPos += 35
+	end
+ 
+	scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, yPos)
+end
+ 
+game.Players.PlayerAdded:Connect(refreshPlayerList)
+game.Players.PlayerRemoving:Connect(refreshPlayerList)
+refreshPlayerList()
+ 
+-- Track air time for each player
+local airTimes = {}
+game:GetService("RunService").RenderStepped:Connect(function(dt)
+	for _, plr in ipairs(game.Players:GetPlayers()) do
+		local character = plr.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			if humanoid.FloorMaterial == Enum.Material.Air then
+				airTimes[plr] = (airTimes[plr] or 0) + dt
+			else
+				airTimes[plr] = 0
+			end
+		end
+	end
+end)
+ 
+-- Scan All Players Button & label (parented to main frame)
+local scanButton = Instance.new("TextButton")
+scanButton.Size = UDim2.new(1, 0, 0, 40)
+scanButton.Position = UDim2.new(0, 0, 1, 10)
+scanButton.BackgroundColor3 = Color3.new(0.8, 0.8, 0.8)
+scanButton.Text = "Scan All Players"
+scanButton.Font = Enum.Font.SourceSansBold
+scanButton.TextScaled = true
+scanButton.Parent = frame
+ 
+local suspiciousLabel = Instance.new("TextLabel")
+suspiciousLabel.Size = UDim2.new(1, 0, 0, 60)
+suspiciousLabel.Position = UDim2.new(0, 0, 1, 55)
+suspiciousLabel.BackgroundColor3 = Color3.new(1, 1, 1)
+suspiciousLabel.BorderSizePixel = 0
+suspiciousLabel.TextColor3 = Color3.new(1, 0, 0)
+suspiciousLabel.TextScaled = true
+suspiciousLabel.TextWrapped = true
+suspiciousLabel.Text = ""
+suspiciousLabel.Font = Enum.Font.SourceSansBold
+suspiciousLabel.Parent = frame
+ 
+-- Scan function
+local function scanPlayers()
+	local suspiciousNames = {}
+	for _, plr in ipairs(game.Players:GetPlayers()) do
+		local backpack = plr:FindFirstChild("Backpack")
+		local items = {}
+		local character = plr.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local isDead = humanoid and humanoid.Health <= 0
+ 
+		if backpack then
+			for _, tool in ipairs(backpack:GetChildren()) do
+				if tool:IsA("Tool") then
+					table.insert(items, tool.Name)
+				end
+			end
+		end
+ 
+		local isSuspicious = not isDead and ((#items > 11) or ((airTimes[plr] or 0) > 3))
+		if isSuspicious then
+			table.insert(suspiciousNames, plr.Name)
+		end
+	end
+ 
+	if #suspiciousNames > 0 then
+		suspiciousLabel.Text = "Suspicious: " .. table.concat(suspiciousNames, ", ")
+	else
+		suspiciousLabel.Text = "No suspicious players detected"
+	end
+end
+ 
+scanButton.MouseButton1Click:Connect(scanPlayers)
